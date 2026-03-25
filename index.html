@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cholla BH — IR System Build Guide</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --bg: #ffffff;
+    --surface: #f7f9fb;
+    --surface2: #eef2f6;
+    --border: #d0dae4;
+    --teal: #1a7a7a;
+    --teal-light: #1a7a7a;
+    --teal-dim: #e0f0f0;
+    --gold: #a07010;
+    --danger: #c0392b;
+    --success: #1e6b3c;
+    --text: #1a2330;
+    --text-muted: #4a5f72;
+    --text-dim: #8a9faf;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--sans); background: var(--bg); color: var(--text); line-height: 1.7; font-size: 14px; }
+
+  /* HEADER */
+  header {
+    background: linear-gradient(135deg, #e8f5f5 0%, #d0ecec 50%, #eef6f6 100%);
+    border-bottom: 2px solid var(--teal);
+    padding: 36px 48px 30px;
+  }
+  .header-top { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
+  .org-badge {
+    background: var(--teal);
+    color: #fff;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 5px 12px;
+    border-radius: 4px;
+    letter-spacing: 1px;
+  }
+  header h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; color: #0d3333; }
+  header p { color: var(--text-muted); font-size: 13px; margin-top: 6px; }
+
+  /* LAYOUT */
+  .container { max-width: 1080px; margin: 0 auto; padding: 40px 48px 80px; }
+
+  /* PEOPLE MAP */
+  .people-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+    margin-bottom: 36px;
+  }
+  .person-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .person-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+  }
+  .person-card.action::before { background: var(--teal); }
+  .person-card.alert-only::before { background: var(--text-dim); }
+  .person-card.compliance::before { background: var(--gold); }
+  .person-role {
+    font-size: 10px;
+    font-family: var(--mono);
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .person-card.action .person-role { color: var(--teal-light); }
+  .person-card.alert-only .person-role { color: var(--text-dim); }
+  .person-card.compliance .person-role { color: var(--gold); }
+  .person-name { font-weight: 600; font-size: 14px; margin-bottom: 3px; }
+  .person-email {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--text-muted);
+    word-break: break-all;
+  }
+  .person-gets {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .person-gets span {
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 3px;
+    width: fit-content;
+  }
+  .tag-alert { background: #1a2232; color: #7a9fc0; border: 1px solid #253040; }
+  .tag-action { background: #0d3030; color: #2aafaf; border: 1px solid #1a7a7a; }
+  .tag-final { background: #1a2000; color: #aacc00; border: 1px solid #556600; }
+  .tag-pdf { background: #1a1200; color: var(--gold); border: 1px solid #6a5000; }
+
+  /* FLOW */
+  .flow-wrapper {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    margin-bottom: 36px;
+    overflow-x: auto;
+  }
+
+  .flow-step {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    margin-bottom: 0;
+  }
+
+  .flow-node-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .fn {
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+    border: 1.5px solid;
+    min-width: 140px;
+    line-height: 1.4;
+  }
+  .fn-trigger  { background: #0a1a2a; border-color: #1f6feb; color: #1a5a8a; }
+  .fn-notify   { background: #e0f2f2; border-color: var(--teal); color: #7ae8e8; }
+  .fn-review   { background: #fdf6e0; border-color: var(--gold); color: #e3c060; }
+  .fn-branch   { background: #f0f8e8; border-color: #cc6600; color: #ffaa44; }
+  .fn-output   { background: #eef8e0; border-color: #4a9c00; color: #88dd44; }
+  .fn-pdf      { background: #f5e8ff; border-color: #8833cc; color: #4a1a7a; }
+  .fn-sp       { background: #e8f0fb; border-color: #0066cc; color: #0a3a8a; }
+
+  .flow-arrow-v {
+    width: 2px;
+    background: var(--border);
+    min-height: 20px;
+    flex: 1;
+    align-self: stretch;
+  }
+  .flow-arrow-h {
+    height: 2px;
+    background: var(--border);
+    width: 24px;
+    align-self: center;
+    flex-shrink: 0;
+  }
+  .flow-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    text-align: center;
+    margin-top: 4px;
+    max-width: 140px;
+  }
+
+  /* VERTICAL FLOW */
+  .vflow { display: flex; flex-direction: column; align-items: flex-start; gap: 0; }
+  .vflow-row { display: flex; align-items: flex-start; gap: 0; }
+  .vflow-node { display: flex; flex-direction: column; align-items: center; }
+  .vflow-arrow { display: flex; align-items: center; }
+  .arrow-down { width: 2px; height: 20px; background: var(--border); margin: 0 auto; }
+  .arrow-right { height: 2px; width: 24px; background: var(--border); }
+
+  /* BRANCH BOX */
+  .branch-container {
+    display: flex;
+    gap: 16px;
+    margin-left: 24px;
+    margin-top: 0;
+    flex-wrap: wrap;
+  }
+  .branch {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 10px;
+    background: #f5f7fa;
+    min-width: 140px;
+  }
+  .branch-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    text-align: center;
+    margin-bottom: 8px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* STEPS */
+  .section { margin-bottom: 48px; }
+  .section-label { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: 2px; color: var(--teal-light); text-transform: uppercase; margin-bottom: 6px; }
+  h2 { font-size: 20px; font-weight: 600; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 14px; font-weight: 600; margin-bottom: 8px; color: var(--teal-light); }
+
+  .step-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
+  .step-header { display: flex; align-items: center; gap: 14px; padding: 13px 18px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+  .step-num { width: 28px; height: 28px; border-radius: 50%; background: var(--teal); color: #fff; font-family: var(--mono); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .step-title { font-weight: 600; font-size: 14px; flex: 1; }
+  .step-type { font-family: var(--mono); font-size: 10px; padding: 3px 8px; border-radius: 4px; background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); white-space: nowrap; }
+  .step-body { padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+  .step-desc { color: var(--text-muted); font-size: 13px; }
+
+  .cfg {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 5px 14px;
+    font-size: 12px;
+  }
+  .cfg-k { color: var(--text-muted); font-family: var(--mono); font-size: 11px; display: flex; align-items: flex-start; padding-top: 1px; }
+  .cfg-v { color: var(--text); }
+  .cfg-v code { background: var(--surface2); border: 1px solid var(--border); border-radius: 3px; padding: 1px 5px; font-family: var(--mono); font-size: 11px; color: #1a5a8a; }
+
+  pre {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 0 0 8px 8px;
+    padding: 16px;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.6;
+    color: #1a2330;
+  }
+  .code-label {
+    display: flex;
+    align-items: center;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    padding: 7px 14px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    gap: 8px;
+  }
+  .code-label .lang { background: var(--teal-dim); color: var(--teal-light); padding: 1px 6px; border-radius: 3px; font-size: 9px; font-weight: 700; letter-spacing: 1px; }
+
+  .callout { display: flex; gap: 12px; border-radius: 8px; padding: 13px 15px; font-size: 13px; border: 1px solid; }
+  .callout-icon { font-size: 16px; flex-shrink: 0; line-height: 1.4; }
+  .callout-warn  { background: #fdf5dc; border-color: var(--gold); color: #e3c060; }
+  .callout-info  { background: #e0f2f2; border-color: var(--teal); color: #7ae8e8; }
+  .callout-tip   { background: #eef8e0; border-color: #4a9c00; color: #88dd44; }
+  .callout-danger{ background: #fdf0ee; border-color: var(--danger); color: #ff8870; }
+
+  .email-preview {
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    color: #1a1a1a;
+  }
+  .ep-header {
+    background: #1a7a7a;
+    color: white;
+    padding: 12px 16px;
+    font-size: 13px;
+    font-weight: bold;
+  }
+  .ep-meta {
+    background: #f5f5f5;
+    padding: 10px 16px;
+    border-bottom: 1px solid #ddd;
+    font-size: 11px;
+    color: #555;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .ep-body { padding: 14px 16px; color: #333; line-height: 1.6; }
+  .ep-field-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+  .ep-field-table td { padding: 5px 8px; border: 1px solid #ddd; font-size: 11px; }
+  .ep-field-table td:first-child { background: #eef5f5; font-weight: bold; width: 35%; color: #1a7a7a; }
+  .ep-btn-row { display: flex; gap: 8px; padding: 12px 16px; background: #f5f5f5; border-top: 1px solid #ddd; }
+  .ep-btn { padding: 8px 16px; border-radius: 4px; font-size: 12px; font-weight: bold; border: none; cursor: default; }
+  .ep-btn-approve { background: #1a7a7a; color: white; }
+  .ep-btn-return  { background: #888; color: white; }
+  .ep-btn-escalate{ background: #c0392b; color: white; }
+  .ep-comment-area { margin: 10px 16px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; min-height: 60px; background: #fffef5; font-size: 11px; color: #888; font-style: italic; }
+
+  table.data { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.data th { background: var(--surface2); color: var(--text-muted); padding: 9px 12px; text-align: left; font-size: 11px; color: var(--text-muted); border-bottom: 2px solid var(--border); text-transform: uppercase; letter-spacing: 0.5px; }
+  table.data td { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  table.data tr:last-child td { border-bottom: none; }
+
+  .placeholder { font-family: var(--mono); font-size: 10.5px; background: #e8f0fb; color: #66aaff; border: 1px solid #003366; padding: 1px 5px; border-radius: 3px; white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <span class="org-badge">CHOLLA BEHAVIORAL HEALTH</span>
+    <span style="color:var(--text-dim);font-family:var(--mono);font-size:11px;">Power Automate IR System</span>
+  </div>
+  <h1>Incident Report Workflow — Complete Build Guide</h1>
+  <p>Exact email routing · Emily approval chain · Compliance loop · Word Online PDF · SharePoint dual-save</p>
+</header>
+
+<div class="container">
+
+<!-- ══════════════════════════════════════════
+     SECTION 1 — PEOPLE MAP
+══════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">Section 01</div>
+  <h2>People, Roles & What Each Receives</h2>
+
+  <div class="people-grid">
+
+    <div class="person-card action">
+      <div class="person-role">Clinical Director · PRIMARY REVIEWER</div>
+      <div class="person-name">Emily O'Brien</div>
+      <div class="person-email">emily.obrien@chollabehavioralhealth.com</div>
+      <div class="person-gets">
+        <span class="tag-action">Full IR + Approve/Return buttons</span>
+        <span class="tag-action">Compliance push-back review</span>
+        <span class="tag-final">Final approval confirmation</span>
+        <span class="tag-pdf">PDF copy</span>
+      </div>
+    </div>
+
+    <div class="person-card compliance">
+      <div class="person-role">Compliance Team · SECONDARY REVIEWER</div>
+      <div class="person-name">Compliance Team</div>
+      <div class="person-email">compliance@chollabehavioralhealth.com</div>
+      <div class="person-gets">
+        <span class="tag-alert">Alert CC on submission</span>
+        <span class="tag-action">Full IR after Emily approves</span>
+        <span class="tag-action">Can push back → goes back to Emily</span>
+        <span class="tag-pdf">Final PDF (elevated tag)</span>
+      </div>
+    </div>
+
+    <div class="person-card alert-only">
+      <div class="person-role">CEO · Alert + Final Only</div>
+      <div class="person-name">JC</div>
+      <div class="person-email">jc@chollabehavioralhealth.com</div>
+      <div class="person-gets">
+        <span class="tag-alert">Summary alert on submission</span>
+        <span class="tag-pdf">Final PDF output</span>
+      </div>
+    </div>
+
+    <div class="person-card alert-only">
+      <div class="person-role">HR · Alert + Final Only</div>
+      <div class="person-name">Carlee Smith</div>
+      <div class="person-email">carlee.smith@chollabehavioralhealth.com</div>
+      <div class="person-gets">
+        <span class="tag-alert">Summary alert on submission</span>
+        <span class="tag-pdf">Final PDF output</span>
+      </div>
+    </div>
+
+    <div class="person-card alert-only">
+      <div class="person-role">Consulting · Alert Only</div>
+      <div class="person-name">A. Cruz</div>
+      <div class="person-email">Acruz@baaconsults.com</div>
+      <div class="person-gets">
+        <span class="tag-alert">Summary alert on submission</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SECTION 2 — FLOW DIAGRAM
+══════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">Section 02</div>
+  <h2>Complete Flow Logic</h2>
+
+  <div class="flow-wrapper">
+    <p style="font-family:var(--mono);font-size:10px;color:var(--text-dim);margin-bottom:20px;">POWER AUTOMATE FLOW — READ TOP TO BOTTOM</p>
+
+    <div style="display:flex;flex-direction:column;gap:0;align-items:flex-start;max-width:760px;">
+
+      <!-- Step 1 -->
+      <div style="display:flex;flex-direction:column;align-items:center;">
+        <div class="fn fn-trigger" style="min-width:300px;">📋 TRIGGER: MS Forms — New IR Submitted</div>
+        <div class="arrow-down"></div>
+      </div>
+
+      <!-- Step 2 -->
+      <div style="display:flex;flex-direction:column;align-items:center;">
+        <div class="fn fn-notify" style="min-width:300px;">🔧 Get Response Details + Init Variables</div>
+        <div class="arrow-down"></div>
+      </div>
+
+      <!-- Step 3 — Alert emails -->
+      <div style="display:flex;flex-direction:column;align-items:center;">
+        <div class="fn fn-notify" style="min-width:300px;">📧 Alert Emails → JC, Carlee, A.Cruz, Compliance (CC)</div>
+        <div style="font-size:10px;color:var(--text-dim);font-family:var(--mono);text-align:center;margin:2px 0;">Summary only — no action required</div>
+        <div class="arrow-down"></div>
+      </div>
+
+      <!-- Step 4 — Emily approval -->
+      <div style="display:flex;flex-direction:column;align-items:center;">
+        <div class="fn fn-review" style="min-width:300px;">⚖️ Approval → Emily O'Brien (Clinical Director)</div>
+        <div style="font-size:10px;color:var(--text-dim);font-family:var(--mono);text-align:center;margin:2px 0;">Full IR + comment box + 3 buttons</div>
+        <div class="arrow-down"></div>
+      </div>
+
+      <!-- Emily branch -->
+      <div style="display:flex;gap:12px;flex-wrap:wrap;">
+
+        <div class="branch" style="border-color:#cc6600;background:#fff8f0;">
+          <div class="branch-label" style="color:#cc6600;">RETURN WITH NOTES</div>
+          <div class="fn fn-branch" style="min-width:130px;">📤 Email Submitter</div>
+          <div class="arrow-down"></div>
+          <div class="fn fn-branch" style="min-width:130px;font-size:10px;">Emily's notes included</div>
+          <div class="arrow-down"></div>
+          <div class="fn fn-branch" style="min-width:130px;font-size:10px;border-color:#888;color:#aaa;">⏹ Terminate</div>
+        </div>
+
+        <div class="branch" style="border-color:var(--teal);background:#f0fafa;">
+          <div class="branch-label" style="color:var(--teal-light);">EMILY APPROVES → FORWARD</div>
+          <div class="fn fn-review" style="min-width:160px;">⚖️ Approval → Compliance Team</div>
+          <div style="font-size:10px;color:var(--text-dim);font-family:var(--mono);text-align:center;margin:4px 0;">Full IR + Emily's notes + buttons</div>
+          <div class="arrow-down"></div>
+
+          <!-- Compliance branch - nested -->
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+
+            <div class="branch" style="border-color:#cc6600;min-width:130px;background:#fff8f0;">
+              <div class="branch-label" style="color:#cc6600;font-size:8px;">COMPLIANCE PUSHES BACK</div>
+              <div class="fn fn-branch" style="min-width:120px;font-size:10px;">🔄 Re-send to Emily</div>
+              <div style="font-size:9px;color:var(--text-dim);font-family:var(--mono);text-align:center;margin:3px 0;">with compliance notes</div>
+              <div class="arrow-down"></div>
+              <div class="fn fn-review" style="min-width:120px;font-size:10px;">Emily re-reviews</div>
+              <div class="arrow-down"></div>
+              <div style="font-size:9px;color:var(--text-dim);font-family:var(--mono);text-align:center;margin:0 0 4px;">Approve or Return again</div>
+            </div>
+
+            <div class="branch" style="border-color:#4a9c00;min-width:130px;background:#f0f9e8;">
+              <div class="branch-label" style="color:#88dd44;font-size:8px;">COMPLIANCE APPROVES</div>
+              <div class="fn fn-pdf" style="min-width:120px;font-size:10px;">📄 Select Notes Checkbox</div>
+              <div class="arrow-down"></div>
+              <div class="fn fn-pdf" style="min-width:120px;font-size:10px;">📝 Populate Word Template</div>
+              <div class="arrow-down"></div>
+              <div class="fn fn-pdf" style="min-width:120px;font-size:10px;">🔄 Convert to PDF</div>
+              <div class="arrow-down"></div>
+              <div class="fn fn-output" style="min-width:120px;font-size:10px;">📬 Final Email (High)</div>
+              <div style="font-size:9px;color:var(--text-dim);font-family:var(--mono);text-align:center;margin:2px 0;">Emily, JC, Carlee + PDF</div>
+              <div class="arrow-down"></div>
+              <div class="fn fn-sp" style="min-width:120px;font-size:10px;">💾 Save to HR SharePoint</div>
+              <div class="arrow-down"></div>
+              <div class="fn fn-sp" style="min-width:120px;font-size:10px;">💾 Save to Compliance SP</div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SECTION 3 — STEP BY STEP
+══════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">Section 03</div>
+  <h2>Step-by-Step Flow Configuration</h2>
+
+  <!-- STEP 1 -->
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-num">1</div>
+      <div class="step-title">Trigger + Get Response + Initialize Variables</div>
+      <span class="step-type">Trigger · 3 actions</span>
+    </div>
+    <div class="step-body">
+      <div class="cfg">
+        <span class="cfg-k">Trigger</span>
+        <span class="cfg-v">When a new response is submitted — select your IR form</span>
+        <span class="cfg-k">Action 1</span>
+        <span class="cfg-v">Get response details → Form ID: same form · Response ID: <code>triggerOutputs()?['body/resourceData/responseId']</code></span>
+        <span class="cfg-k">Action 2</span>
+        <span class="cfg-v">Initialize variable: <code>varIRNumber</code> = <code>concat('IR-', formatDateTime(utcNow(), 'yyyyMMdd-HHmm'))</code></span>
+        <span class="cfg-k">Action 3</span>
+        <span class="cfg-v">Initialize variable: <code>varStatus</code> = <code>Pending Review</code></span>
+        <span class="cfg-k">Action 4</span>
+        <span class="cfg-v">Initialize variable: <code>varAllComments</code> (Array) = <code>[]</code></span>
+        <span class="cfg-k">Action 5</span>
+        <span class="cfg-v">Initialize variable: <code>varSelectedNotes</code> (String) = empty</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-num">2</div>
+      <div class="step-title">Send Alert Emails — JC, Carlee, A. Cruz, Compliance (CC)</div>
+      <span class="step-type">Send an email (V2) × 1 email, 4 recipients</span>
+    </div>
+    <div class="step-body">
+      <p class="step-desc">One email, all four on the To/CC line. Summary view only — no buttons, no action. Subject prefix makes it instantly distinguishable from the action emails.</p>
+      <div class="cfg">
+        <span class="cfg-k">To</span>
+        <span class="cfg-v"><code>jc@chollabehavioralhealth.com; carlee.smith@chollabehavioralhealth.com; Acruz@baaconsults.com</code></span>
+        <span class="cfg-k">CC</span>
+        <span class="cfg-v"><code>compliance@chollabehavioralhealth.com</code> (compliance is CC — they'll get full action email later)</span>
+        <span class="cfg-k">Subject</span>
+        <span class="cfg-v"><code>[IR RECEIVED] @{variables('varIRNumber')} — Under Review by Clinical Director</code></span>
+        <span class="cfg-k">Importance</span>
+        <span class="cfg-v">Normal</span>
+        <span class="cfg-k">Body</span>
+        <span class="cfg-v">Use the HTML template below — populate all form fields. Include a banner: <em>"No action required. Emily O'Brien is reviewing. You will receive the final output once approved."</em></span>
+      </div>
+
+      <div class="email-preview">
+        <div class="ep-header">📋 [IR RECEIVED] IR-20240315-0943 — Under Review by Clinical Director</div>
+        <div class="ep-meta">
+          <span>From: IR System &lt;noreply@chollabehavioralhealth.com&gt;</span>
+          <span>To: jc@chollabehavioralhealth.com; carlee.smith@chollabehavioralhealth.com; Acruz@baaconsults.com</span>
+          <span>CC: compliance@chollabehavioralhealth.com</span>
+        </div>
+        <div class="ep-body">
+          <div style="background:#fff3cd;border-left:4px solid #d4a017;padding:8px 12px;margin-bottom:10px;font-size:11px;">ℹ️ <strong>For your awareness only.</strong> Emily O'Brien (Clinical Director) is reviewing this IR. No action required from you at this time.</div>
+          <table class="ep-field-table">
+            <tr><td>IR Number</td><td>IR-20240315-0943</td></tr>
+            <tr><td>Submitted By</td><td>[Submitter Name]</td></tr>
+            <tr><td>Incident Date</td><td>[Date]</td></tr>
+            <tr><td>Incident Type</td><td>[Type]</td></tr>
+            <tr><td>Location</td><td>[Unit / Location]</td></tr>
+            <tr><td>Summary</td><td>[First 200 chars of description]</td></tr>
+            <tr><td>Status</td><td>Pending Clinical Director Review</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-num">3</div>
+      <div class="step-title">Approval — Emily O'Brien (Clinical Director)</div>
+      <span class="step-type">Start and wait for an approval · Custom Responses</span>
+    </div>
+    <div class="step-body">
+      <p class="step-desc">Emily receives the full IR with a comment box and three response buttons rendered natively in Outlook. She is the gatekeeper before anything reaches compliance.</p>
+      <div class="cfg">
+        <span class="cfg-k">Approval type</span>
+        <span class="cfg-v"><code>Custom Responses - Wait for one response</code></span>
+        <span class="cfg-k">Title</span>
+        <span class="cfg-v"><code>IR Review Required: @{variables('varIRNumber')}</code></span>
+        <span class="cfg-k">Assigned to</span>
+        <span class="cfg-v"><code>emily.obrien@chollabehavioralhealth.com</code></span>
+        <span class="cfg-k">Response options</span>
+        <span class="cfg-v">Add 2 options: <code>Approve — Forward to Compliance</code> and <code>Return with Notes</code></span>
+        <span class="cfg-k">Details</span>
+        <span class="cfg-v">Paste the full IR HTML email body here so Emily sees all fields inline in the approval email</span>
+        <span class="cfg-k">Request type</span>
+        <span class="cfg-v">Leave blank — Outlook renders the approval natively</span>
+        <span class="cfg-k">Email subject override</span>
+        <span class="cfg-v"><code>[ACTION REQUIRED] IR Clinical Review: @{variables('varIRNumber')}</code></span>
+      </div>
+
+      <div class="email-preview">
+        <div class="ep-header" style="background:#8B0000;">⚖️ [ACTION REQUIRED] IR Clinical Review: IR-20240315-0943</div>
+        <div class="ep-meta">
+          <span>From: Cholla BH IR System via Approvals</span>
+          <span>To: emily.obrien@chollabehavioralhealth.com</span>
+        </div>
+        <div class="ep-body">
+          <p style="font-size:11px;margin-bottom:8px;">You have been assigned to review the following Incident Report. Please add your comments below and select a response.</p>
+          <table class="ep-field-table">
+            <tr><td>IR Number</td><td>[All IR fields appear here]</td></tr>
+            <tr><td>Incident Description</td><td>[Full narrative text]</td></tr>
+            <tr><td>Immediate Actions</td><td>[Actions taken]</td></tr>
+          </table>
+          <div style="margin:8px 0;font-size:11px;font-weight:bold;color:#555;">Your Comments:</div>
+          <div class="ep-comment-area">Type your review notes here before selecting a response...</div>
+        </div>
+        <div class="ep-btn-row">
+          <button class="ep-btn ep-btn-approve">✅ Approve — Forward to Compliance</button>
+          <button class="ep-btn ep-btn-return">↩ Return with Notes</button>
+        </div>
+      </div>
+
+      <p style="color:var(--text-muted);font-size:12px;">After this action resolves, append to <code>varAllComments</code>:</p>
+      <div class="code-label"><span class="lang">EXPRESSION</span> Append to varAllComments</div>
+      <pre>{
+  "reviewer": "Emily O'Brien (Clinical Director)",
+  "response": "@{outputs('Emily_Approval')?['body/responses'][0]['displayText']}",
+  "comments": "@{outputs('Emily_Approval')?['body/responses'][0]['comments']}",
+  "timestamp": "@{utcNow('yyyy-MM-dd HH:mm')} UTC"
+}</pre>
+    </div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-num">4</div>
+      <div class="step-title">Condition — Check Emily's Response</div>
+      <span class="step-type">Condition</span>
+    </div>
+    <div class="step-body">
+      <div class="cfg">
+        <span class="cfg-k">Condition</span>
+        <span class="cfg-v"><code>outputs('Emily_Approval')?['body/responses'][0]['displayText']</code> is equal to <code>Return with Notes</code></span>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div>
+          <h3 style="color:#cc6600;">YES — Return Branch</h3>
+          <div style="background:#fff8f5;border:1px solid #cc3300;border-radius:6px;padding:12px;font-size:12px;color:var(--text-muted);">
+            <div>1. Set <code>varStatus</code> = <code>Returned by Clinical Director</code></div>
+            <div style="margin-top:6px;">2. <strong>Send email</strong> to submitter email from form response:</div>
+            <div style="padding-left:12px;margin-top:4px;">
+              — Subject: <code>[IR RETURNED] @{varIRNumber} — Clinical Director Review Notes</code><br>
+              — Include Emily's comments from <code>varAllComments</code><br>
+              — Instruct submitter to resubmit corrected IR
+            </div>
+            <div style="margin-top:6px;">3. <strong>Update SharePoint item</strong> status = Returned</div>
+            <div style="margin-top:6px;">4. <strong>Terminate</strong> the flow</div>
+          </div>
+        </div>
+        <div>
+          <h3>NO — Proceed to Compliance</h3>
+          <div style="background:#f0fafa;border:1px solid var(--teal);border-radius:6px;padding:12px;font-size:12px;color:var(--text-muted);">
+            <div>1. Set <code>varStatus</code> = <code>Approved by Clinical Director — Compliance Review</code></div>
+            <div style="margin-top:6px;">2. Continue to Step 5 (Compliance approval)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 5 -->
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-num">5</div>
+      <div class="step-title">Approval — Compliance Team</div>
+      <span class="step-type">Start and wait for an approval · Custom Responses</span>
+    </div>
+    <div class="step-body">
+      <p class="step-desc">Only reached after Emily approves. Compliance receives the full IR PLUS Emily's notes. If compliance pushes back, the loop goes back to Emily (Step 6). Use a <strong>Do Until</strong> loop wrapping steps 5–6 so the Emily ↔ Compliance back-and-forth can repeat until both approve.</p>
+
+      <div class="callout callout-warn">
+        <span class="callout-icon">⚠️</span>
+        <div><strong>Wrap Steps 5–6 in a Do Until loop.</strong> Condition: <code>varStatus</code> equals <code>Both Approved</code>. This handles the compliance→Emily→compliance cycle without building duplicate branches. Set a reasonable iteration limit (e.g., 5) to prevent infinite loops.</div>
+      </div>
+
+      <div class="cfg">
+        <span class="cfg-k">Approval type</span>
+        <span class="cfg-v"><code>Custom Responses - Wait for one response</code></span>
+        <span class="cfg-k">Assigned to</span>
+        <span class="cfg-v"><code>compliance@chollabehavioralhealth.com</code></span>
+        <span class="cfg-k">Response options</span>
+        <span class="cfg-v"><code>Approve — Finalize</code> and <code>Return to Clinical Director</code></span>
+        <span class="cfg-k">Details</span>
+        <span class="cfg-v">Full IR + Emily's approval notes from <code>varAllComments</code> formatted as a table</span>
+        <span class="cfg-k">Subject override</span>
+        <span class="cfg-v"><code>[ACTION REQUIRED] Compliance Review: @{varIRNumber} — Approved by Clinical Director</code></span>
+        <span class="cfg-k">Importance</span>
+        <span class="cfg-v">High</span>
+      </div>
+
+      <p style="color:var(--text-muted);font-size:12px;margin-top:4px;">After this action resolves, append compliance response to <code>varAllComments</code> using the same pattern as Step 3.</p>
+    </div>
+  </div>
+
+  <!-- STEP 6 -->
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-num">6</div>
+      <div class="step-title">Condition — Check Compliance Response (inside Do Until loop)</div>
+      <span class="step-type">Condition</span>
+    </div>
+    <div class="step-body">
+      <div class="cfg">
+        <span class="cfg-k">Condition</span>
+        <span class="cfg-v"><code>outputs('Compliance_Approval')?['body/responses'][0]['displayText']</code> equals <code>Return to Clinical Director</code></span>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div>
+          <h3 style="color:#cc6600;">YES — Return to Emily</h3>
+          <div style="background:#fff8f5;border:1px solid #cc3300;border-radius:6px;padding:12px;font-size:12px;color:var(--text-muted);">
+            <div>1. Set <code>varStatus</code> = <code>Returned by Compliance — Re-review by Emily</code></div>
+            <div style="margin-top:6px;">2. <strong>Approval action → Emily</strong> again (same as Step 3 but include compliance notes)</div>
+            <div style="margin-top:6px;">3. Subject: <code>[RE-REVIEW] Compliance Notes: @{varIRNumber}</code></div>
+            <div style="margin-top:6px;">4. Append Emily's new response to <code>varAllComments</code></div>
+            <div style="margin-top:6px;">5. Loop continues → back to Compliance approval (Step 5)</div>
+          </div>
+        </div>
+        <div>
+          <h3>NO — Both Approved</h3>
+          <div style="background:#f0fafa;border:1px solid var(--teal);border-radius:6px;padding:12px;font-size:12px;color:var(--text-muted);">
+            <div>1. Set <code>varStatus</code> = <code>Both Approved</code></div>
+            <div style="margin-top:6px;">2. <strong>Do Until exits</strong> — proceed to PDF generation (Step 7)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 7 -->
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-num">7</div>
+      <div class="step-title">Select Notes for Final Record (Checkbox Logic)</div>
+      <span class="step-type">Post Adaptive Card and wait for a response · Approvals</span>
+    </div>
+    <div class="step-body">
+      <p class="step-desc">Before generating the PDF, send one final card to Emily (or the final approver) that shows all collected comments and lets them check which ones to include in the permanent record. The response populates <code>varSelectedNotes</code>.</p>
+
+      <div class="callout callout-info">
+        <span class="callout-icon">ℹ️</span>
+        <div><strong>Implementation approach:</strong> Use another <strong>Custom Response approval</strong> sent to Emily. In the details field, list all comments from <code>varAllComments</code> with a numbered reference. Ask Emily to type the numbers of comments to include (e.g., "1,2,4"). The comment field response becomes <code>varSelectedNotes</code>. Alternatively, include a pre-formatted "All Notes Summary" and give Emily only Approve/Exclude options — simpler and less error-prone for Outlook-only users.</div>
+      </div>
+
+      <div class="cfg">
+        <span class="cfg-k">Approval type</span>
+        <span class="cfg-v"><code>Custom Responses - Wait for one response</code></span>
+        <span class="cfg-k">Assigned to</span>
+        <span class="cfg-v"><code>emily.obrien@chollabehavioralhealth.com</code></span>
+        <span class="cfg-k">Response options</span>
+        <span class="cfg-v"><code>Include All Notes in PDF</code> · <code>Include Selected Notes Only</code></span>
+        <span class="cfg-k">Details</span>
+        <span class="cfg-v">List all comments numbered. Instruct: "If selecting notes, type the note numbers to exclude in the comments field below."</span>
+        <span class="cfg-k">On "Include All"</span>
+        <span class="cfg-v">Set <code>varSelectedNotes</code> = full formatted string of <code>varAllComments</code></span>
+        <span class="cfg-k">On "Selected Only"</span>
+        <span class="cfg-v">Run a <strong>Filter array</strong> action to exclude items by the numbers Emily entered in comments</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 8 -->
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-num">8</div>
+      <div class="step-title">Generate PDF — Word Online Template → Convert to PDF</div>
+      <span class="step-type">Word Online (Business) — Free with M365</span>
+    </div>
+    <div class="step-body">
+      <p class="step-desc">The <code>IR_AuditTrail_Template.docx</code> file (included with this guide) uses <code>{{PLACEHOLDER}}</code> tags that Power Automate's "Populate a Microsoft Word template" action replaces with live data.</p>
+
+      <div class="callout callout-tip">
+        <span class="callout-icon">💡</span>
+        <div>Upload <code>IR_AuditTrail_Template.docx</code> to a SharePoint document library at a path like <code>Shared Documents/IR Templates/IR_AuditTrail_Template.docx</code>. This is the source file — never overwritten.</div>
+      </div>
+
+      <div class="cfg">
+        <span class="cfg-k">Action 1</span>
+        <span class="cfg-v"><strong>Populate a Microsoft Word template</strong> — Location: SharePoint site, Document Library: Shared Documents, File: IR_AuditTrail_Template.docx</span>
+        <span class="cfg-k">IR_NUMBER</span>
+        <span class="cfg-v"><code>@{variables('varIRNumber')}</code></span>
+        <span class="cfg-k">SUBMISSION_DATE</span>
+        <span class="cfg-v"><code>@{formatDateTime(triggerOutputs()['body/resourceData/submitDate'], 'MMMM dd, yyyy h:mm tt')}</code></span>
+        <span class="cfg-k">SUBMITTER_NAME</span>
+        <span class="cfg-v">Form field dynamic content</span>
+        <span class="cfg-k">INCIDENT_DESCRIPTION</span>
+        <span class="cfg-v">Form field dynamic content</span>
+        <span class="cfg-k">SELECTED_NOTES</span>
+        <span class="cfg-v"><code>@{variables('varSelectedNotes')}</code></span>
+        <span class="cfg-k">EMILY_APPROVAL_DATE</span>
+        <span class="cfg-v">Timestamp from Emily's approval output</span>
+        <span class="cfg-k">COMPLIANCE_APPROVAL_DATE</span>
+        <span class="cfg-v">Timestamp from compliance approval output</span>
+        <span class="cfg-k">IR_STATUS</span>
+        <span class="cfg-v"><code>FULLY APPROVED</code></span>
+        <span class="cfg-k">Action 2</span>
+        <span class="cfg-v"><strong>Convert Word Document to PDF</strong> — File Content: output of Action 1 (populated DOCX content)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 9 -->
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-num">9</div>
+      <div class="step-title">Save PDF to HR SharePoint + Compliance SharePoint</div>
+      <span class="step-type">Create file · SharePoint × 2</span>
+    </div>
+    <div class="step-body">
+      <p class="step-desc">Two separate <strong>Create file</strong> actions — one per SharePoint location. Both happen in parallel (run them sequentially, no dependency).</p>
+      <div class="cfg">
+        <span class="cfg-k">HR SharePoint site</span>
+        <span class="cfg-v">Your Cholla BH SharePoint site URL (HR section)</span>
+        <span class="cfg-k">HR folder path</span>
+        <span class="cfg-v"><code>/Shared Documents/HR/IR-Records/@{formatDateTime(utcNow(),'yyyy')}/@{variables('varIRNumber')}</code></span>
+        <span class="cfg-k">HR file name</span>
+        <span class="cfg-v"><code>@{variables('varIRNumber')}_AuditTrail.pdf</code></span>
+        <span class="cfg-k">HR file content</span>
+        <span class="cfg-v">Output of "Convert Word Document to PDF" action</span>
+        <span class="cfg-k">Compliance folder path</span>
+        <span class="cfg-v"><code>/Shared Documents/Compliance/IR-Records/@{formatDateTime(utcNow(),'yyyy')}/@{variables('varIRNumber')}</code></span>
+        <span class="cfg-k">Compliance file name</span>
+        <span class="cfg-v">Same as HR file name</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 10 -->
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-num">10</div>
+      <div class="step-title">Final Email — Compliance (High Importance) + Emily, JC, Carlee with PDF</div>
+      <span class="step-type">Send an email (V2)</span>
+    </div>
+    <div class="step-body">
+      <p class="step-desc">This is the elevated-tag final email. Compliance gets it as the primary actionable recipient; Emily, JC, and Carlee get it as confirmation of closure. PDF is attached.</p>
+      <div class="cfg">
+        <span class="cfg-k">To</span>
+        <span class="cfg-v"><code>compliance@chollabehavioralhealth.com</code></span>
+        <span class="cfg-k">CC</span>
+        <span class="cfg-v"><code>emily.obrien@chollabehavioralhealth.com; jc@chollabehavioralhealth.com; carlee.smith@chollabehavioralhealth.com</code></span>
+        <span class="cfg-k">Subject</span>
+        <span class="cfg-v"><code>[IR COMPLETE — FOR YOUR RECORDS] @{variables('varIRNumber')} | Approved by Clinical Director &amp; Compliance</code></span>
+        <span class="cfg-k">Importance</span>
+        <span class="cfg-v"><strong>High</strong></span>
+        <span class="cfg-k">Attachments name</span>
+        <span class="cfg-v"><code>@{variables('varIRNumber')}_AuditTrail.pdf</code></span>
+        <span class="cfg-k">Attachments content</span>
+        <span class="cfg-v">Output of "Convert Word Document to PDF"</span>
+        <span class="cfg-k">Body note</span>
+        <span class="cfg-v">Include summary of all reviewers, timestamps, final status, and links to both SharePoint saved copies</span>
+      </div>
+
+      <div class="email-preview">
+        <div class="ep-header" style="background:#0d5555;">✅ [IR COMPLETE — FOR YOUR RECORDS] IR-20240315-0943</div>
+        <div class="ep-meta">
+          <span>From: Cholla BH IR System · <strong>HIGH IMPORTANCE ⚑</strong></span>
+          <span>To: compliance@chollabehavioralhealth.com</span>
+          <span>CC: emily.obrien@ · jc@ · carlee.smith@</span>
+          <span>📎 IR-20240315-0943_AuditTrail.pdf</span>
+        </div>
+        <div class="ep-body">
+          <div style="background:#e8f5f5;border-left:4px solid #1a7a7a;padding:8px 12px;margin-bottom:10px;font-size:11px;">This Incident Report has been fully reviewed and approved. The attached PDF contains the complete audit trail and has been saved to HR and Compliance SharePoint records.</div>
+          <table class="ep-field-table">
+            <tr><td>Clinical Director</td><td>✅ Emily O'Brien — Approved [timestamp]</td></tr>
+            <tr><td>Compliance</td><td>✅ Compliance Team — Approved [timestamp]</td></tr>
+            <tr><td>HR SharePoint</td><td><a href="#">View saved copy →</a></td></tr>
+            <tr><td>Compliance SharePoint</td><td><a href="#">View saved copy →</a></td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════
+     SECTION 4 — PLACEHOLDER MAP
+══════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">Section 04</div>
+  <h2>Word Template Placeholder Map</h2>
+  <p style="color:var(--text-muted);font-size:13px;margin-bottom:16px;">Every <span class="placeholder">{{PLACEHOLDER}}</span> in the .docx template maps to a Power Automate field. Fill these in the "Populate a Microsoft Word template" action.</p>
+
+  <table class="data">
+    <thead>
+      <tr><th>Placeholder</th><th>Power Automate Source</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><span class="placeholder">{{IR_NUMBER}}</span></td><td><code>variables('varIRNumber')</code></td><td>Auto-generated timestamp ID</td></tr>
+      <tr><td><span class="placeholder">{{SUBMISSION_DATE}}</span></td><td>Form response submit time</td><td>Format: <code>MMMM dd, yyyy h:mm tt</code></td></tr>
+      <tr><td><span class="placeholder">{{SUBMITTER_NAME}}</span></td><td>Form field: "Your Name"</td><td></td></tr>
+      <tr><td><span class="placeholder">{{SUBMITTER_EMAIL}}</span></td><td>Form field: "Your Email" or responder</td><td></td></tr>
+      <tr><td><span class="placeholder">{{INCIDENT_DATE}}</span></td><td>Form field: "Incident Date"</td><td></td></tr>
+      <tr><td><span class="placeholder">{{INCIDENT_TYPE}}</span></td><td>Form field: "Type of Incident"</td><td></td></tr>
+      <tr><td><span class="placeholder">{{INCIDENT_LOCATION}}</span></td><td>Form field: "Location / Unit"</td><td></td></tr>
+      <tr><td><span class="placeholder">{{INCIDENT_DESCRIPTION}}</span></td><td>Form field: "Description"</td><td>Full narrative text</td></tr>
+      <tr><td><span class="placeholder">{{IMMEDIATE_ACTIONS}}</span></td><td>Form field: "Immediate Actions"</td><td></td></tr>
+      <tr><td><span class="placeholder">{{WITNESSES}}</span></td><td>Form field: "Witnesses"</td><td></td></tr>
+      <tr><td><span class="placeholder">{{SELECTED_NOTES}}</span></td><td><code>variables('varSelectedNotes')</code></td><td>Notes Emily selected for permanent record</td></tr>
+      <tr><td><span class="placeholder">{{EMILY_APPROVAL_DATE}}</span></td><td>Emily approval action timestamp</td><td><code>outputs('Emily_Approval')?['body/completionDate']</code></td></tr>
+      <tr><td><span class="placeholder">{{COMPLIANCE_APPROVAL_DATE}}</span></td><td>Compliance approval timestamp</td><td>Same pattern, compliance action name</td></tr>
+      <tr><td><span class="placeholder">{{IR_STATUS}}</span></td><td><code>variables('varStatus')</code></td><td>Will be "FULLY APPROVED" at this stage</td></tr>
+      <tr><td><span class="placeholder">{{GENERATED_DATE}}</span></td><td><code>formatDateTime(utcNow(), 'MMMM dd, yyyy')</code></td><td>PDF generation timestamp</td></tr>
+      <tr><td><span class="placeholder">{{EMILY_NOTIFIED}}</span></td><td>Timestamp from alert email action</td><td>Use <code>utcNow()</code> at time of send</td></tr>
+      <tr><td><span class="placeholder">{{JC_NOTIFIED}}</span></td><td>Same as above (same email send)</td><td></td></tr>
+      <tr><td><span class="placeholder">{{CARLEE_NOTIFIED}}</span></td><td>Same as above</td><td></td></tr>
+      <tr><td><span class="placeholder">{{COMPLIANCE_NOTIFIED}}</span></td><td>Timestamp of compliance approval email</td><td></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SECTION 5 — SHAREPOINT LISTS
+══════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">Section 05</div>
+  <h2>SharePoint Setup</h2>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <div>
+      <h3>HR SharePoint Library</h3>
+      <div class="cfg">
+        <span class="cfg-k">Site</span><span class="cfg-v">Cholla BH HR site</span>
+        <span class="cfg-k">Library</span><span class="cfg-v">Shared Documents</span>
+        <span class="cfg-k">Folder structure</span><span class="cfg-v"><code>/HR/IR-Records/2024/IR-20240315-0943/</code></span>
+        <span class="cfg-k">Permissions</span><span class="cfg-v">HR team read/write; Clinical Director read</span>
+      </div>
+    </div>
+    <div>
+      <h3>Compliance SharePoint Library</h3>
+      <div class="cfg">
+        <span class="cfg-k">Site</span><span class="cfg-v">Cholla BH Compliance site</span>
+        <span class="cfg-k">Library</span><span class="cfg-v">Shared Documents</span>
+        <span class="cfg-k">Folder structure</span><span class="cfg-v"><code>/Compliance/IR-Records/2024/IR-20240315-0943/</code></span>
+        <span class="cfg-k">Permissions</span><span class="cfg-v">Compliance team read/write; Clinical Director read</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout callout-tip" style="margin-top:14px;">
+    <span class="callout-icon">💡</span>
+    <div>Also create a <strong>SharePoint List</strong> (not library) called "IR Tracking Log" with columns for IR Number, Status, Submitter, Emily Approved, Compliance Approved, PDF URL. Update this list at each stage of the flow so Carlee (HR) can view an IR dashboard without needing to open every PDF.</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SECTION 6 — QUICK BUILD CHECKLIST
+══════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">Section 06</div>
+  <h2>Build Checklist</h2>
+
+  <div class="cfg" style="grid-template-columns:30px 1fr;gap:6px 10px;font-size:12.5px;">
+    <span style="color:var(--teal-light);">☐</span><span>Create MS Form with all IR fields (add at minimum: Name, Email, Incident Date, Type, Location, Description, Immediate Actions, Witnesses)</span>
+    <span style="color:var(--teal-light);">☐</span><span>Upload <code>IR_AuditTrail_Template.docx</code> to SharePoint template library</span>
+    <span style="color:var(--teal-light);">☐</span><span>Create HR SharePoint document library folder structure</span>
+    <span style="color:var(--teal-light);">☐</span><span>Create Compliance SharePoint document library folder structure</span>
+    <span style="color:var(--teal-light);">☐</span><span>Create new Power Automate flow (Automated — MS Forms trigger)</span>
+    <span style="color:var(--teal-light);">☐</span><span>Add Initialize Variable actions for all 5 variables</span>
+    <span style="color:var(--teal-light);">☐</span><span>Build Step 2 alert email — verify all 4 recipient addresses</span>
+    <span style="color:var(--teal-light);">☐</span><span>Build Emily approval — test with Custom Responses, verify comment box appears in Outlook</span>
+    <span style="color:var(--teal-light);">☐</span><span>Build Return branch — verify submitter email populates correctly from form</span>
+    <span style="color:var(--teal-light);">☐</span><span>Add Do Until loop — set termination condition to <code>varStatus eq 'Both Approved'</code></span>
+    <span style="color:var(--teal-light);">☐</span><span>Build Compliance approval inside Do Until</span>
+    <span style="color:var(--teal-light);">☐</span><span>Build compliance push-back → re-send to Emily branch</span>
+    <span style="color:var(--teal-light);">☐</span><span>Build notes selection step (Step 7)</span>
+    <span style="color:var(--teal-light);">☐</span><span>Build Word template population — map all placeholders</span>
+    <span style="color:var(--teal-light);">☐</span><span>Build Convert Word to PDF action</span>
+    <span style="color:var(--teal-light);">☐</span><span>Build dual SharePoint file saves</span>
+    <span style="color:var(--teal-light);">☐</span><span>Build final compliance email with PDF attachment</span>
+    <span style="color:var(--teal-light);">☐</span><span>Run end-to-end test: submit form → verify each stage fires correctly → verify PDF opens cleanly</span>
+    <span style="color:var(--teal-light);">☐</span><span>Set approval timeouts (48h recommended) with reminder emails</span>
+  </div>
+</div>
+
+<div style="border-top:1px solid var(--border);padding-top:20px;color:var(--text-dim);font-family:var(--mono);font-size:11px;text-align:center;">
+  Cholla Behavioral Health IR System · Build Guide + Word Template · March 2026
+</div>
+
+</div>
+</body>
+</html>
